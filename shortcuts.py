@@ -1,7 +1,7 @@
 """Atajos de Study Lens: leerlos de Hyprland, guardarlos y la ventana para cambiarlos.
 
 Los atajos viven en ~/.config/study-lens/shortcuts.lua (lo escribe esta ventana).
-~/.config/hypr/bindings.lua lo carga y registra cada atajo con la descripción
+~/.config/hypr/study_lens.lua (ver hyprsetup.py) lo carga y registra cada atajo con la descripción
 "Study Lens: … (--acción)", que es como la app sabe cuál es cuál.
 """
 
@@ -15,6 +15,8 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, GLib, Gtk  # noqa: E402
+
+import hyprsetup  # noqa: E402
 
 SHORTCUTS_FILE = Path.home() / ".config" / "study-lens" / "shortcuts.lua"
 
@@ -112,13 +114,7 @@ def save(binds):
     lines.append("}")
     SHORTCUTS_FILE.parent.mkdir(parents=True, exist_ok=True)
     SHORTCUTS_FILE.write_text("\n".join(lines) + "\n")
-    try:
-        subprocess.run(["hyprctl", "reload"], capture_output=True, timeout=10)
-        errs = subprocess.run(["hyprctl", "configerrors"], capture_output=True, text=True,
-                              timeout=5).stdout.strip()
-        return errs or None
-    except Exception as e:
-        return str(e)
+    return hyprsetup.reload()
 
 
 # ------------------------------------------------------------------ ventanas ---
@@ -276,6 +272,17 @@ class ShortcutsWindow(Gtk.Window):
             "Pulsa «Agregar» y presiona la combinación o el botón del mouse que quieras. "
             "Cada acción puede tener varios atajos. Los cambios se aplican al instante.")))
 
+        # Aviso si la configuración de Hyprland no está instalada (los atajos no harían nada).
+        self.setup_bar = Gtk.Box(spacing=8)
+        warn = Gtk.Label(xalign=0, wrap=True, hexpand=True, label=(
+            "Los atajos todavía no están instalados en Hyprland."))
+        self.setup_bar.append(warn)
+        setup_btn = Gtk.Button(label="Instalar")
+        setup_btn.add_css_class("suggested-action")
+        setup_btn.connect("clicked", lambda *_: self.run_setup())
+        self.setup_bar.append(setup_btn)
+        outer.append(self.setup_bar)
+
         self.list = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
         self.list.add_css_class("boxed-list")
         scroll = Gtk.ScrolledWindow(vexpand=True)
@@ -298,7 +305,14 @@ class ShortcutsWindow(Gtk.Window):
         self.set_child(outer)
         self.refresh()
 
+    def run_setup(self):
+        ok, msg = hyprsetup.setup()
+        self.status.set_text(msg)
+        self.refresh()
+        self.on_changed()
+
     def refresh(self):
+        self.setup_bar.set_visible(not hyprsetup.is_installed())
         self.binds = current_binds()
         while (row := self.list.get_first_child()) is not None:
             self.list.remove(row)

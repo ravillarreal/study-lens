@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    ".": {
+      "release-type": "python",
+      "package-name": "study-lens",
+      "include-component-in-tag": false,
+      "extra-files": ["study_lens.py"],
+      "changelog-sections": [
+        {"type": "feat", "section": "Novedades"},
+        {"type": "fix", "section": "Correcciones"},
+        {"type": "perf", "section": "Rendimiento"},
+        {"type": "docs", "section": "Documentación", "hidden": true},
+        {"type": "chore", "section": "Mantenimiento", "hidden": true},
+        {"type": "refactor", "section": "Mantenimiento", "hidden": true}
+      ]
+    }
+  }
+}

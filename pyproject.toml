@@ -1,0 +1,11 @@
+[project]
+name = "study-lens"
+version = "0.1.0"
+description = "Panel para Hyprland que captura ejercicios en pantalla y te los explica con un modelo vía opencode"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }

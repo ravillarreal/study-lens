@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Usa el entorno del proyecto (.venv, con ziamath) y cae al Python del sistema si no existe.
-PY="$HOME/Work/study-lens/.venv/bin/python"
-[ -x "$PY" ] || PY=/usr/bin/python3
-exec "$PY" "$HOME/Work/study-lens/study_lens.py" "$@"
+# Lanzador de Study Lens. Funciona aunque se llame desde un enlace (p. ej. ~/.local/bin).
+DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+PY="$DIR/.venv/bin/python"
+[ -x "$PY" ] || PY=python3
+exec "$PY" "$DIR/study_lens.py" "$@"

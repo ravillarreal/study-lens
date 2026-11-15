@@ -11,7 +11,11 @@ Uso (una sola instancia; las llamadas siguientes se mandan a la que ya corre):
                           hacer scroll) y lo agrega a la conversación actual
   study-lens --new        vacía el ejercicio actual (capturas, sesión y respuesta)
   study-lens --toggle     muestra u oculta el panel
+  study-lens --analyze    manda las capturas pendientes al modelo
   study-lens --shortcuts  abre la ventana para cambiar los atajos (teclado o mouse)
+  study-lens --setup      instala el comando, el lanzador, los atajos y la regla de ventana
+  study-lens --unsetup    quita todo eso (deja tu configuración)
+  study-lens --version    muestra la versión
 """
 
 import base64
@@ -33,9 +37,11 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, Gio, GLib, Gtk, Pango  # noqa: E402
 
+import hyprsetup  # noqa: E402
 import mathrender  # noqa: E402
 import shortcuts  # noqa: E402
 
+__version__ = "0.1.0"  # x-release-please-version
 APP_ID = "dev.zavu.StudyLens"
 APP_DIR = Path(__file__).resolve().parent      # contiene .opencode/agent/tutor.md
 CONFIG_FILE = Path.home() / ".config" / "study-lens" / "config.json"
@@ -683,6 +689,9 @@ class StudyLens(Gtk.Application):
         path.unlink(missing_ok=True)
         log(f"captura quitada: {path.name}")
         self.refresh_thumbs()
+        pending = len(self.shots) - self.sent
+        self.set_status(f"Captura quitada. {pending} pendiente(s)." if pending
+                        else "Captura quitada. No quedan capturas pendientes.")
 
     def refresh_thumbs(self):
         while (child := self.thumbs.get_first_child()) is not None:
@@ -702,14 +711,23 @@ class StudyLens(Gtk.Application):
             pic.set_content_fit(Gtk.ContentFit.COVER)
             pic.set_size_request(150, 95)
             pic.set_tooltip_text(f"Captura {i} · clic: ver en grande"
-                                 + ("" if sent else " · clic derecho: quitar"))
+                                 + (" · ya enviada" if sent else " · ✕ o clic derecho: quitar"))
             click = Gtk.GestureClick()
             click.connect("released", lambda *_a, p=path: subprocess.Popen(["xdg-open", str(p)]))
             pic.add_controller(click)
             rclick = Gtk.GestureClick(button=3)
             rclick.connect("released", lambda *_a, p=path: self.remove_shot(p))
             pic.add_controller(rclick)
-            frame = Gtk.Frame(child=pic, label=f"{i} ✓" if sent else f"{i}")
+            overlay = Gtk.Overlay(child=pic)
+            if not sent:
+                rm = Gtk.Button(icon_name="window-close-symbolic", tooltip_text="Quitar esta captura",
+                                halign=Gtk.Align.END, valign=Gtk.Align.START,
+                                margin_top=4, margin_end=4)
+                rm.add_css_class("circular")
+                rm.add_css_class("osd")
+                rm.connect("clicked", lambda *_a, p=path: self.remove_shot(p))
+                overlay.add_overlay(rm)
+            frame = Gtk.Frame(child=overlay, label=f"{i} ✓" if sent else f"{i}")
             self.thumbs.append(frame)
 
     def add_shot(self, png, new_target):
@@ -1011,5 +1029,19 @@ class StudyLens(Gtk.Application):
         return False
 
 
+def main():
+    args = sys.argv[1:]
+    # Comandos que no abren el panel.
+    if "--version" in args:
+        print(f"study-lens {__version__}")
+        return 0
+    if "--setup" in args or "--unsetup" in args:
+        ok, msg = hyprsetup.setup() if "--setup" in args else hyprsetup.unsetup()
+        print(msg)
+        return 0 if ok else 1
+    hyprsetup.sync()
+    return StudyLens().run(sys.argv)
+
+
 if __name__ == "__main__":
-    sys.exit(StudyLens().run(sys.argv))
+    sys.exit(main())
